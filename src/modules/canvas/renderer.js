@@ -1,6 +1,15 @@
 import { FONTS, loadFont } from '../fonts.js';
 import { fitTextInBounds } from './text-fitter.js';
 
+const bitmapCache = new WeakMap();
+
+async function getOrCreateBitmap(blob) {
+  if (bitmapCache.has(blob)) return bitmapCache.get(blob);
+  const bitmap = await createImageBitmap(blob);
+  bitmapCache.set(blob, bitmap);
+  return bitmap;
+}
+
 /**
  * Render translated text onto original image, returning a new Blob.
  *
@@ -15,7 +24,7 @@ export async function renderTranslatedImage(originalImageBlob, regions, settings
   const fontFamilyCss = FONTS[settings.fontFamily]?.cssName || 'sans-serif';
 
   // Load original image
-  const imgBitmap = await createImageBitmap(originalImageBlob);
+  const imgBitmap = await getOrCreateBitmap(originalImageBlob);
 
   // Create canvas at native resolution
   const canvas = new OffscreenCanvas(imgBitmap.width, imgBitmap.height);
@@ -28,11 +37,6 @@ export async function renderTranslatedImage(originalImageBlob, regions, settings
   for (const region of regions) {
     if (!region.translatedText?.trim()) continue;
     drawRegion(ctx, region, settings, fontFamilyCss);
-  }
-
-  // Close bitmap to free resources
-  if (typeof imgBitmap.close === 'function') {
-    imgBitmap.close();
   }
 
   // Convert to PNG blob

@@ -8,6 +8,7 @@ const ICON_OPACITY_ACTIVE = 1.0;
 const ICON_TRANSITION = '100ms ease';
 
 let extensionEnabled = true;
+const inFlight = new Set();
 
 function init() {
   chrome.storage.sync.get('settings', (result) => {
@@ -82,6 +83,12 @@ function showIconLoading(iconElement) {
 }
 
 async function handleIconClick(imgElement, iconElement) {
+  const key = imgElement.src;
+  if (inFlight.has(key)) {
+    showToast('Translation already in progress for this image.', 'info');
+    return;
+  }
+  inFlight.add(key);
   showIconLoading(iconElement);
 
   try {
@@ -124,6 +131,7 @@ async function handleIconClick(imgElement, iconElement) {
     console.error('[Mantra] OCR flow failed:', error);
     showToast(`OCR failed: ${error.message}`, 'error');
   } finally {
+    inFlight.delete(key);
     resetFloatingIcon(iconElement);
   }
 }
@@ -158,20 +166,55 @@ function resetFloatingIcon(iconElement) {
   iconElement.style.opacity = `${ICON_OPACITY_INACTIVE}`;
 }
 
+let pendingImages = new Set();
+let scheduledScan = false;
+
+function scheduleImageScan(newImages) {
+  for (const img of newImages) pendingImages.add(img);
+  if (scheduledScan) return;
+  scheduledScan = true;
+
+  const cb = () => {
+    for (const img of pendingImages) {
+      if (document.body.contains(img)) {
+        injectFloatingIcon(img);
+      }
+    }
+    pendingImages.clear();
+    scheduledScan = false;
+  };
+
+  if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+    requestIdleCallback(cb, { timeout: 500 });
+  } else {
+    setTimeout(cb, 100);
+  }
+}
+
 function setupPageObserver() {
   const observer = new MutationObserver((mutations) => {
+    const newImages = [];
     mutations.forEach((mutation) => {
       if (mutation.addedNodes.length) {
         mutation.addedNodes.forEach((node) => {
           if (node.nodeName === 'IMG') {
-            detectImages();
+            if (!node.dataset.mantraIconInjected) {
+              node.dataset.mantraIconInjected = 'true';
+              newImages.push(node);
+            }
           } else if (node.querySelectorAll) {
-            const images = node.querySelectorAll('img:not([data-mantra-icon-injected])');
-            if (images.length > 0) detectImages();
+            const imgs = node.querySelectorAll('img:not([data-mantra-icon-injected])');
+            imgs.forEach((img) => {
+              img.dataset.mantraIconInjected = 'true';
+              newImages.push(img);
+            });
           }
         });
       }
     });
+    if (newImages.length > 0) {
+      scheduleImageScan(newImages);
+    }
   });
   observer.observe(document.body, { childList: true, subtree: true });
 }
