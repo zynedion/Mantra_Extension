@@ -50,4 +50,4 @@ $content | Set-Content -Path $OutFile
 
 $commitCount = (git rev-list --count "$Base..$Head").Trim()
 $byteCount = (Get-Item -Path $OutFile).Length
-Write-Output "wrote $OutFile: $commitCount commit(s), $byteCount bytes"
+Write-Output "wrote $OutFile - $commitCount commit(s), $byteCount bytes"
