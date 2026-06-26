@@ -82,4 +82,45 @@ describe('Content Script Image Detection', () => {
     expect(blob).toBeInstanceOf(Blob);
     expect(blob.size).toBe(3);
   });
+
+  it('handles mantra:ocr-complete event and triggers translateRegions message', async () => {
+    // Mock chrome runtime sendMessage
+    global.chrome.runtime.sendMessage = vi.fn((msg, cb) => {
+      if (msg.action === 'translateRegions') {
+        cb({
+          success: true,
+          translatedRegions: [{ id: '1', originalText: 'こんにちは', translatedText: 'Halo' }]
+        });
+      }
+    });
+
+    const mockOcrResult = {
+      regions: [{ id: '1', text: 'こんにちは', bounds: { x: 0, y: 0, width: 10, height: 10 } }]
+    };
+
+    // Watch CustomEvent dispatch
+    const completeSpy = vi.fn();
+    window.addEventListener('mantra:translation-complete', completeSpy);
+
+    await import('../src/content-script.js');
+
+    // Trigger the event
+    window.dispatchEvent(new CustomEvent('mantra:ocr-complete', {
+      detail: {
+        imgElement: document.createElement('img'),
+        imageBlob: new Blob(['data'], { type: 'image/jpeg' }),
+        ocrResult: mockOcrResult
+      }
+    }));
+
+    await new Promise(r => setTimeout(r, 20));
+
+    expect(global.chrome.runtime.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'translateRegions', regions: mockOcrResult.regions }),
+      expect.any(Function)
+    );
+    expect(completeSpy).toHaveBeenCalled();
+    const eventDetail = completeSpy.mock.calls[0][0].detail;
+    expect(eventDetail.regions[0].translatedText).toBe('Halo');
+  });
 });

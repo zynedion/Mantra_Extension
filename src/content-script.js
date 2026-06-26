@@ -259,3 +259,61 @@ if (typeof window !== 'undefined') {
   window.captureImageAsBlob = captureImageAsBlob;
 }
 
+window.addEventListener('mantra:ocr-complete', async (event) => {
+  const { imgElement, imageBlob, ocrResult } = event.detail;
+
+  // Skip if no text found
+  if (!ocrResult || !ocrResult.regions || ocrResult.regions.length === 0) return;
+
+  // Request translation
+  const response = await new Promise((resolve) => {
+    chrome.runtime.sendMessage({
+      action: 'translateRegions',
+      regions: ocrResult.regions
+    }, resolve);
+  });
+
+  if (!response) {
+    showToast('No response from background translation worker.', 'error');
+    return;
+  }
+
+  if (!response.success) {
+    handleTranslationError(response);
+    return;
+  }
+
+  showToast(`Translated ${response.translatedRegions.length} region(s). Rendering...`, 'success');
+
+  // Hand off to canvas rendering (Phase 5)
+  window.dispatchEvent(new CustomEvent('mantra:translation-complete', {
+    detail: {
+      imgElement,
+      imageBlob,
+      regions: response.translatedRegions
+    }
+  }));
+});
+
+function handleTranslationError(response) {
+  switch (response.errorCode) {
+    case 'NO_API_KEY':
+      showToast('Set translation provider API key in Settings.', 'error');
+      break;
+    case 'AUTH_ERROR':
+      showToast('Invalid API key for translation provider. Check Settings.', 'error');
+      break;
+    case 'QUOTA_EXCEEDED':
+      showToast('Translation quota exceeded. Try a different provider in Settings.', 'error');
+      break;
+    case 'RATE_LIMITED':
+      showToast('Rate limited. Wait a moment and try again.', 'error');
+      break;
+    case 'PARSE_ERROR':
+      showToast('Translation response was malformed. Try again or switch provider.', 'error');
+      break;
+    default:
+      showToast(`Translation failed: ${response.error || 'Unknown error'}`, 'error');
+  }
+}
+
