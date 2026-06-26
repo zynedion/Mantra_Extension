@@ -9,8 +9,7 @@ export default defineConfig({
       input: {
         popup: resolve(__dirname, 'public/popup.html'),
         options: resolve(__dirname, 'public/options.html'),
-        background: resolve(__dirname, 'src/background.js'),
-        'content-script': resolve(__dirname, 'src/content-script.js')
+        background: resolve(__dirname, 'src/background.js')
       },
       output: {
         entryFileNames: (chunk) => {

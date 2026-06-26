@@ -4,7 +4,7 @@
   "description": "Manga Translator Extension",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/copy-assets.cjs",
+    "build": "vite build && vite build --config vite.content.config.js && node scripts/copy-assets.cjs",
     "lint": "eslint src",
     "test": "vitest run",
     "test:watch": "vitest",
