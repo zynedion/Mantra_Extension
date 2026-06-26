@@ -1,0 +1,15 @@
+:root {
+  --bg-primary: #1a1a24;
+  --bg-secondary: #2a2a35;
+  --bg-tertiary: #3a3a45;
+  --text-primary: #e8e8e8;
+  --text-secondary: #a8a8a8;
+  --text-muted: #808080;
+  --accent-blue: #5b8cf5;
+  --accent-purple: #a855f7;
+  --success-green: #10b981;
+  --error-red: #ef4444;
+  --warning-amber: #f59e0b;
+  --border-color: #404050;
+  --border-focus: #5b8cf5;
+}
