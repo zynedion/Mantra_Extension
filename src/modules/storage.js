@@ -98,6 +98,8 @@ export const ApiKeyStore = {
   }
 };
 
+const STORE_OCR_CACHE = 'ocrCache';
+
 let dbInstance = null;
 async function getDB() {
   if (dbInstance) return dbInstance;
@@ -107,6 +109,10 @@ async function getDB() {
         const store = db.createObjectStore(STORE_TRANSLATIONS, { keyPath: 'id' });
         store.createIndex('createdAt', 'createdAt');
         store.createIndex('siteUrl', 'siteUrl');
+      }
+      if (!db.objectStoreNames.contains(STORE_OCR_CACHE)) {
+        const cacheStore = db.createObjectStore(STORE_OCR_CACHE, { keyPath: 'hash' });
+        cacheStore.createIndex('cachedAt', 'cachedAt');
       }
     }
   });
@@ -190,5 +196,33 @@ export const HistoryStore = {
     }
     await tx.done;
     return toDelete.length;
+  }
+};
+
+export const OcrCacheStore = {
+  async getDBInstance() {
+    return await getDB();
+  },
+  async get(hash) {
+    const db = await getDB();
+    const entry = await db.get(STORE_OCR_CACHE, hash);
+    if (!entry) return null;
+    if (Date.now() - new Date(entry.cachedAt).getTime() > 7 * 24 * 60 * 60 * 1000) {
+      await db.delete(STORE_OCR_CACHE, hash);
+      return null;
+    }
+    return entry.ocrResult;
+  },
+  async set(hash, ocrResult) {
+    const db = await getDB();
+    await db.put(STORE_OCR_CACHE, {
+      hash,
+      ocrResult,
+      cachedAt: new Date().toISOString()
+    });
+  },
+  async clear() {
+    const db = await getDB();
+    await db.clear(STORE_OCR_CACHE);
   }
 };

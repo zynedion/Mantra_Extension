@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import 'fake-indexeddb/auto';
-import { HistoryStore } from '../src/modules/storage.js';
+import { HistoryStore, OcrCacheStore } from '../src/modules/storage.js';
 
 global.chrome = {
   storage: {
@@ -29,5 +29,33 @@ describe('HistoryStore Operations', () => {
 
     const retrieved = await HistoryStore.getById(id);
     expect(retrieved.translatedText).toBe('Hello');
+  });
+});
+
+describe('OcrCacheStore Operations', () => {
+  beforeEach(async () => {
+    try {
+      await OcrCacheStore.clear();
+    } catch (e) {
+      // In case DB doesn't exist/upgrade yet
+    }
+  });
+
+  it('saves OCR result and retrieves it, enforcing 7-day expiration', async () => {
+    const hash = 'mock-sha256-hash-val';
+    const ocrResult = { fullText: 'テスト', regions: [{ id: '1', text: 'テスト', bounds: { x: 0, y: 0, width: 50, height: 20 } }] };
+
+    await OcrCacheStore.set(hash, ocrResult);
+    const retrieved = await OcrCacheStore.get(hash);
+    expect(retrieved).not.toBeNull();
+    expect(retrieved.fullText).toBe('テスト');
+
+    // Test expiration
+    const db = await OcrCacheStore.getDBInstance();
+    const expiredDate = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
+    await db.put('ocrCache', { hash, ocrResult, cachedAt: expiredDate });
+
+    const expiredRetrieved = await OcrCacheStore.get(hash);
+    expect(expiredRetrieved).toBeNull();
   });
 });
