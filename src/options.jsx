@@ -1,9 +1,46 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
+import { SettingsStore, DEFAULT_SETTINGS } from './modules/storage.js';
+import ApiKeysTab from './components/settings/ApiKeysTab.jsx';
+import TranslationTab from './components/settings/TranslationTab.jsx';
+import AppearanceTab from './components/settings/AppearanceTab.jsx';
+import HistoryTab from './components/settings/HistoryTab.jsx';
+import AboutTab from './components/settings/AboutTab.jsx';
+
+const TABS = [
+  { id: 'api', label: 'API Keys' },
+  { id: 'translation', label: 'Translation' },
+  { id: 'appearance', label: 'Appearance' },
+  { id: 'history', label: 'History' },
+  { id: 'about', label: 'About' }
+];
 
 export default function Options() {
-  const tabs = ['API Keys', 'Translation', 'Appearance', 'History', 'About'];
-  const [activeTab, setActiveTab] = React.useState('API Keys');
+  const [activeTab, setActiveTab] = useState('api');
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    SettingsStore.getAll().then(s => {
+      setSettings(s);
+      setLoading(false);
+    });
+  }, []);
+
+  const updateSetting = async (key, value) => {
+    await SettingsStore.set(key, value);
+    setSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleReset = async () => {
+    if (!confirm('Reset all settings to defaults? API keys will NOT be removed.')) return;
+    const defaults = await SettingsStore.reset();
+    setSettings(defaults);
+  };
+
+  if (loading) {
+    return <div className="loading-screen" style={{ padding: '40px', color: 'var(--text-secondary)' }}>Loading...</div>;
+  }
 
   return (
     <div className="settings-container">
@@ -15,42 +52,32 @@ export default function Options() {
           </svg>
           <h2>Mantra</h2>
         </div>
-        {tabs.map((tab) => (
+        {TABS.map(tab => (
           <button
-            key={tab}
-            className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab)}
+            key={tab.id}
+            className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+            type="button"
           >
-            {tab}
+            {tab.label}
           </button>
         ))}
       </aside>
-      
+
       <main className="settings-main">
-        <header className="settings-header">
+        <header className="settings-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h1>Mantra Settings</h1>
+          <button className="btn btn-secondary" onClick={handleReset} type="button">
+            Reset Defaults
+          </button>
         </header>
-        
+
         <section className="tab-content">
-          <h2>{activeTab}</h2>
-          {activeTab === 'API Keys' && (
-            <p>API keys configurations (Google Cloud Vision & Translation providers) coming in Phase 2.</p>
-          )}
-          {activeTab === 'Translation' && (
-            <p>Language targeting and automatic detection settings coming in Phase 2.</p>
-          )}
-          {activeTab === 'Appearance' && (
-            <p>Canvas fonts, sizes, and layout preferences settings coming in Phase 2.</p>
-          )}
-          {activeTab === 'History' && (
-            <p>Saved translations history lists and export functionalities coming in Phase 2.</p>
-          )}
-          {activeTab === 'About' && (
-            <div>
-              <p>Mantra Manga Translator Extension - Version 1.0.0</p>
-              <p className="muted">Designed for frictionless in-place manga reading translations.</p>
-            </div>
-          )}
+          {activeTab === 'api' && <ApiKeysTab settings={settings} updateSetting={updateSetting} />}
+          {activeTab === 'translation' && <TranslationTab settings={settings} updateSetting={updateSetting} />}
+          {activeTab === 'appearance' && <AppearanceTab settings={settings} updateSetting={updateSetting} />}
+          {activeTab === 'history' && <HistoryTab settings={settings} updateSetting={updateSetting} />}
+          {activeTab === 'about' && <AboutTab />}
         </section>
       </main>
     </div>

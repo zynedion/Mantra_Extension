@@ -122,3 +122,43 @@ body {
 .btn-secondary {
   background: var(--bg-secondary);
 }
+
+/* Thumbnails */
+.thumbnail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.thumbnail {
+  aspect-ratio: 3 / 4;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 150ms ease;
+}
+
+.thumbnail:hover {
+  border-color: var(--accent-blue);
+}
+
+.thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 16px 0 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+

@@ -99,3 +99,371 @@ body {
   color: var(--text-muted);
   font-size: 12px;
 }
+
+/* ==========================================================================
+   Settings Sub-Tab Component Styles
+   ========================================================================== */
+
+.tab-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.setting-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.setting-group h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Select, input fields */
+select, 
+input[type="text"], 
+input[type="password"] {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  border-radius: 6px;
+  width: 100%;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 150ms ease;
+}
+
+select:focus, 
+input[type="text"]:focus, 
+input[type="password"]:focus {
+  border-color: var(--border-focus);
+}
+
+/* Toggle controls */
+.toggle {
+  width: 44px;
+  height: 24px;
+  background: var(--border-color);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  position: relative;
+  transition: background 200ms ease;
+}
+
+.toggle.active {
+  background: var(--accent-blue);
+}
+
+.toggle .knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: left 200ms ease;
+}
+
+.toggle.active .knob {
+  left: 22px;
+}
+
+/* Range input sliders */
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent-blue);
+  background: var(--border-color);
+  height: 6px;
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+/* Color input */
+input[type="color"] {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  width: 40px;
+  height: 28px;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* Buttons */
+.btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 150ms ease;
+}
+
+.btn-primary {
+  background: var(--accent-blue);
+  color: #ffffff;
+}
+
+.btn-primary:hover {
+  background: #477be3;
+}
+
+.btn-secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.btn-secondary:hover {
+  border-color: var(--accent-blue);
+  background: var(--bg-secondary);
+}
+
+.btn-danger {
+  background: var(--error-red);
+  color: #ffffff;
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* API Key layouts */
+.api-key-row {
+  padding: 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.api-key-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.api-key-header label {
+  font-weight: 500;
+}
+
+.required-badge {
+  background: rgba(168, 85, 247, 0.1);
+  color: var(--accent-purple);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+}
+
+.get-key-link {
+  color: var(--accent-blue);
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.get-key-link:hover {
+  text-decoration: underline;
+}
+
+.api-key-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-icon {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 150ms ease;
+}
+
+.btn-icon:hover {
+  border-color: var(--accent-blue);
+}
+
+.api-key-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.status {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-success {
+  color: var(--success-green);
+}
+
+.status-error {
+  color: var(--error-red);
+}
+
+/* Typography Appearance sliders */
+.slider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.slider-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-blue);
+}
+
+.button-group {
+  display: flex;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.align-btn {
+  flex: 1;
+  background: var(--bg-tertiary);
+  border: none;
+  color: var(--text-secondary);
+  padding: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 150ms ease;
+}
+
+.align-btn.active {
+  background: var(--accent-blue);
+  color: #ffffff;
+}
+
+.align-btn:not(:last-child) {
+  border-right: 1px solid var(--border-color);
+}
+
+.font-preview {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 16px;
+  text-align: center;
+  font-size: 16px;
+  margin-top: 8px;
+}
+
+/* History tab */
+.stats-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.stats-number {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--accent-blue);
+}
+
+.stats-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* About tab */
+.about-pane {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+}
+
+.about-logo {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 8px;
+}
+
+.about-pane h2 {
+  margin: 0;
+}
+
+.version {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.description {
+  line-height: 1.6;
+  color: var(--text-secondary);
+  max-width: 400px;
+  margin: 0;
+}
+
+.about-links {
+  display: flex;
+  gap: 16px;
+}
+
+.about-links a {
+  color: var(--accent-blue);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.about-links a:hover {
+  text-decoration: underline;
+}
+
+.credits {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 16px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 16px;
+  width: 100%;
+}
+
