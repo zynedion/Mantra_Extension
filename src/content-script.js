@@ -1,5 +1,6 @@
 import { renderTranslatedImage } from './modules/canvas/renderer.js';
 import { SettingsStore } from './modules/storage.js';
+import { getErrorDisplay } from './modules/error-messages.js';
 
 const FLOATING_ICON_ID = 'mantra-floating-icon';
 const FLOATING_ICON_SIZE = 24;
@@ -137,22 +138,18 @@ async function handleIconClick(imgElement, iconElement) {
 }
 
 function handleOcrError(response) {
-  switch (response.errorCode) {
-    case 'NO_API_KEY':
-      showToast('Set Google Cloud API key in Settings.', 'error');
+  const display = getErrorDisplay(response.errorCode, response.error);
+  showToast(display.message, 'error', {
+    action: display.action,
+    onAction: () => handleErrorAction(display.actionPayload)
+  });
+}
+
+function handleErrorAction(payload) {
+  if (payload?.tab) {
+    chrome.storage.local.set({ openSettingsTab: payload.tab }, () => {
       chrome.runtime.sendMessage({ action: 'openSettings' });
-      break;
-    case 'AUTH_ERROR':
-      showToast('Invalid Google Cloud API key. Check Settings.', 'error');
-      break;
-    case 'QUOTA_EXCEEDED':
-      showToast('Google Cloud quota exceeded. Resets next month.', 'error');
-      break;
-    case 'SERVER_ERROR':
-      showToast('Google Cloud server error. Try again shortly.', 'error');
-      break;
-    default:
-      showToast(`OCR error: ${response.error || 'Unknown error'}`, 'error');
+    });
   }
 }
 
@@ -235,10 +232,36 @@ function handleMessage(request, sender, sendResponse) {
   }
 }
 
-function showToast(message, type = 'info') {
+function showToast(message, type = 'info', options = {}) {
   const toast = document.createElement('div');
   toast.className = `mantra-toast mantra-toast-${type}`;
-  toast.textContent = message;
+
+  const text = document.createElement('span');
+  text.textContent = message;
+  toast.appendChild(text);
+
+  if (options.action && options.onAction) {
+    const btn = document.createElement('button');
+    btn.className = 'mantra-toast-action';
+    btn.textContent = options.action;
+    Object.assign(btn.style, {
+      marginLeft: '10px',
+      padding: '4px 8px',
+      border: 'none',
+      borderRadius: '4px',
+      backgroundColor: '#ffffff',
+      color: type === 'error' ? '#f44336' : (type === 'success' ? '#4caf50' : '#2196f3'),
+      cursor: 'pointer',
+      fontWeight: 'bold',
+      fontSize: '12px'
+    });
+    btn.addEventListener('click', () => {
+      options.onAction();
+      removeToast(toast);
+    });
+    toast.appendChild(btn);
+  }
+
   Object.assign(toast.style, {
     position: 'fixed',
     bottom: '20px',
@@ -247,10 +270,35 @@ function showToast(message, type = 'info') {
     borderRadius: '6px',
     fontFamily: 'sans-serif',
     fontSize: '14px',
-    zIndex: '10001'
+    zIndex: '10001',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+    transition: 'all 300ms ease'
   });
+
+  if (type === 'error') {
+    toast.style.backgroundColor = '#f44336';
+    toast.style.color = '#ffffff';
+  } else if (type === 'success') {
+    toast.style.backgroundColor = '#4caf50';
+    toast.style.color = '#ffffff';
+  } else {
+    toast.style.backgroundColor = '#2196f3';
+    toast.style.color = '#ffffff';
+  }
+
   document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 2500);
+
+  const timeout = options.duration || (type === 'error' ? 5000 : 3000);
+  const timerId = setTimeout(() => removeToast(toast), timeout);
+
+  function removeToast(t) {
+    t.style.opacity = '0';
+    t.style.transform = 'translateY(20px)';
+    setTimeout(() => t.remove(), 300);
+  }
 }
 
 init();
@@ -342,25 +390,11 @@ window.addEventListener('mantra:ocr-complete', async (event) => {
 });
 
 function handleTranslationError(response) {
-  switch (response.errorCode) {
-    case 'NO_API_KEY':
-      showToast('Set translation provider API key in Settings.', 'error');
-      break;
-    case 'AUTH_ERROR':
-      showToast('Invalid API key for translation provider. Check Settings.', 'error');
-      break;
-    case 'QUOTA_EXCEEDED':
-      showToast('Translation quota exceeded. Try a different provider in Settings.', 'error');
-      break;
-    case 'RATE_LIMITED':
-      showToast('Rate limited. Wait a moment and try again.', 'error');
-      break;
-    case 'PARSE_ERROR':
-      showToast('Translation response was malformed. Try again or switch provider.', 'error');
-      break;
-    default:
-      showToast(`Translation failed: ${response.error || 'Unknown error'}`, 'error');
-  }
+  const display = getErrorDisplay(response.errorCode, response.error);
+  showToast(display.message, 'error', {
+    action: display.action,
+    onAction: () => handleErrorAction(display.actionPayload)
+  });
 }
 
 window.addEventListener('mantra:translation-complete', async (event) => {

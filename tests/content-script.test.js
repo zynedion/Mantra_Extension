@@ -8,6 +8,11 @@ global.chrome = {
         const res = { settings: { enabledOnAllPages: true } };
         return cb ? cb(res) : Promise.resolve(res);
       })
+    },
+    local: {
+      get: vi.fn((key, cb) => cb ? cb({}) : Promise.resolve({})),
+      set: vi.fn((data, cb) => cb ? cb() : Promise.resolve()),
+      remove: vi.fn((key, cb) => cb ? cb() : Promise.resolve())
     }
   },
   runtime: {
@@ -171,5 +176,55 @@ describe('Content Script Image Detection', () => {
 
     // Clean up
     img.remove();
+  });
+
+  it('maps OCR/translation errors through getErrorDisplay and renders toast with action button', async () => {
+    await import('../src/content-script.js');
+
+    // Trigger mantra:ocr-complete with an error response
+    global.chrome.runtime.sendMessage = vi.fn((msg, cb) => {
+      if (msg.action === 'translateRegions') {
+        cb({
+          success: false,
+          errorCode: 'NO_API_KEY',
+          error: 'API key is missing'
+        });
+      }
+    });
+
+    const mockOcrResult = {
+      regions: [{ id: '1', text: 'こんにちは', bounds: { x: 0, y: 0, width: 10, height: 10 } }]
+    };
+
+    window.dispatchEvent(new CustomEvent('mantra:ocr-complete', {
+      detail: {
+        imgElement: document.createElement('img'),
+        imageBlob: new Blob(['data'], { type: 'image/jpeg' }),
+        ocrResult: mockOcrResult
+      }
+    }));
+
+    await new Promise(r => setTimeout(r, 20));
+
+    const toast = document.querySelector('.mantra-toast-error');
+    expect(toast).not.toBeNull();
+    expect(toast.textContent).toContain('API key is missing');
+
+    const actionBtn = toast.querySelector('.mantra-toast-action');
+    expect(actionBtn).not.toBeNull();
+    expect(actionBtn.textContent).toBe('Open Settings');
+
+    // Click action button and verify local storage set and message send
+    actionBtn.click();
+    expect(global.chrome.storage.local.set).toHaveBeenCalledWith(
+      { openSettingsTab: 'api' },
+      expect.any(Function)
+    );
+    // Trigger callback
+    const setCallback = global.chrome.storage.local.set.mock.calls[0][1];
+    setCallback();
+    expect(global.chrome.runtime.sendMessage).toHaveBeenCalledWith({ action: 'openSettings' });
+
+    toast.remove();
   });
 });

@@ -25,6 +25,15 @@ export default function Options() {
       setSettings(s);
       setLoading(false);
     });
+
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.get('openSettingsTab', (res) => {
+        if (res && res.openSettingsTab) {
+          setActiveTab(res.openSettingsTab);
+          chrome.storage.local.remove('openSettingsTab');
+        }
+      });
+    }
   }, []);
 
   const updateSetting = async (key, value) => {
