@@ -68,6 +68,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'testApiKey') {
     testApiKey(request.provider).then(sendResponse);
     return true;
+  } else if (request.action === 'fetchImage') {
+    fetchImageAsBuffer(request.url).then(sendResponse);
+    return true;
   }
   return true;
 });
@@ -107,4 +110,21 @@ async function testGoogleCloud(key) {
     })
   });
   return { success: res.ok, status: res.status };
+}
+
+async function fetchImageAsBuffer(url) {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      return { success: false, error: `HTTP ${response.status}` };
+    }
+    const buffer = await response.arrayBuffer();
+    return {
+      success: true,
+      data: Array.from(new Uint8Array(buffer)),
+      mimeType: response.headers.get('Content-Type') || 'image/jpeg'
+    };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 }

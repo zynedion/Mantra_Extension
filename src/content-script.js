@@ -146,3 +146,54 @@ function showToast(message, type = 'info') {
 }
 
 init();
+
+async function captureImageAsBlob(imgElement) {
+  // Wait for image to fully load
+  if (!imgElement.complete || imgElement.naturalWidth === 0) {
+    await new Promise((resolve, reject) => {
+      imgElement.addEventListener('load', resolve, { once: true });
+      imgElement.addEventListener('error', reject, { once: true });
+      setTimeout(() => reject(new Error('Image load timeout')), 10000);
+    });
+  }
+
+  // Attempt 1: Canvas drawImage (works if same-origin or crossOrigin set)
+  try {
+    return await canvasCapture(imgElement);
+  } catch (err) {
+    console.warn('[Mantra] Canvas capture failed (likely CORS), falling back to fetch:', err);
+  }
+
+  // Attempt 2: Fetch via background (bypasses CORS for many sites)
+  return await fetchViaBackground(imgElement.src);
+}
+
+async function canvasCapture(imgElement) {
+  const canvas = new OffscreenCanvas(imgElement.naturalWidth, imgElement.naturalHeight);
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(imgElement, 0, 0);
+  return await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 });
+}
+
+async function fetchViaBackground(imageUrl) {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(
+      { action: 'fetchImage', url: imageUrl },
+      (response) => {
+        if (response?.success) {
+          // Response.data is array buffer transferred from background
+          const blob = new Blob([new Uint8Array(response.data)], { type: response.mimeType || 'image/jpeg' });
+          resolve(blob);
+        } else {
+          reject(new Error(response?.error || 'Background fetch failed'));
+        }
+      }
+    );
+  });
+}
+
+// Expose helper to global window during tests
+if (typeof window !== 'undefined') {
+  window.captureImageAsBlob = captureImageAsBlob;
+}
+
