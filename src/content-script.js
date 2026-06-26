@@ -1,3 +1,6 @@
+import { renderTranslatedImage } from './modules/canvas/renderer.js';
+import { SettingsStore } from './modules/storage.js';
+
 const FLOATING_ICON_ID = 'mantra-floating-icon';
 const FLOATING_ICON_SIZE = 24;
 const ICON_OPACITY_INACTIVE = 0.3;
@@ -316,4 +319,113 @@ function handleTranslationError(response) {
       showToast(`Translation failed: ${response.error || 'Unknown error'}`, 'error');
   }
 }
+
+window.addEventListener('mantra:translation-complete', async (event) => {
+  const { imgElement, imageBlob, regions } = event.detail;
+
+  try {
+    const settings = await SettingsStore.getAll();
+    const translatedBlob = await renderTranslatedImage(imageBlob, regions, settings);
+    overlayTranslatedImage(imgElement, translatedBlob);
+
+    // Auto-save
+    if (settings.autoSave) {
+      chrome.runtime.sendMessage({
+        action: 'saveToHistory',
+        entry: {
+          originalImageBlob: imageBlob,
+          translatedImageBlob: translatedBlob,
+          originalText: regions.map(r => r.text || '').join('\n'),
+          translatedText: regions.map(r => r.translatedText || '').join('\n'),
+          siteUrl: location.href,
+          sourceLang: regions[0]?.sourceLang || 'ja',
+          targetLang: settings.targetLanguage,
+          translationModel: settings.translationProvider,
+          canvasSettings: extractCanvasSettings(settings)
+        }
+      });
+    }
+
+    showToast('Translation complete! Click overlay to dismiss.', 'success');
+  } catch (error) {
+    console.error('[Mantra] Render failed:', error);
+    showToast(`Rendering failed: ${error.message}`, 'error');
+  }
+});
+
+function overlayTranslatedImage(imgElement, translatedBlob) {
+  const url = URL.createObjectURL(translatedBlob);
+
+  // Remove any existing overlay on this image
+  const existing = document.querySelector(`[data-mantra-overlay-for="${imgElement.dataset.mantraIcon}"]`);
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('img');
+  overlay.src = url;
+  overlay.className = 'mantra-overlay-image';
+  overlay.dataset.mantraOverlayFor = imgElement.dataset.mantraIcon;
+  overlay.title = 'Mantra translation — click to dismiss, double-click to download';
+
+  positionOverlay(overlay, imgElement);
+
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener('click', (e) => {
+    e.stopPropagation();
+    overlay.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  overlay.addEventListener('dblclick', (e) => {
+    e.stopPropagation();
+    downloadImage(translatedBlob, `mantra-translation-${Date.now()}.png`);
+  });
+
+  // Reposition on scroll/resize
+  const reposition = () => positionOverlay(overlay, imgElement);
+  window.addEventListener('scroll', reposition, { passive: true });
+  window.addEventListener('resize', reposition);
+
+  // Cleanup observers when overlay removed
+  const observer = new MutationObserver(() => {
+    if (!document.body.contains(overlay)) {
+      window.removeEventListener('scroll', reposition);
+      window.removeEventListener('resize', reposition);
+      observer.disconnect();
+    }
+  });
+  observer.observe(document.body, { childList: true });
+}
+
+function positionOverlay(overlay, imgElement) {
+  const rect = imgElement.getBoundingClientRect();
+  Object.assign(overlay.style, {
+    position: 'fixed',
+    top: `${rect.top}px`,
+    left: `${rect.left}px`,
+    width: `${rect.width}px`,
+    height: `${rect.height}px`,
+    zIndex: '9999',
+    cursor: 'pointer',
+    pointerEvents: 'auto'
+  });
+}
+
+function downloadImage(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function extractCanvasSettings(settings) {
+  const keys = ['fontSize', 'fontFamily', 'fontColor', 'strokeColor', 'strokeSize',
+                'textAlignment', 'lineSpacing', 'letterSpacing', 'borderRadius', 'borderPadding'];
+  return Object.fromEntries(keys.map(k => [k, settings[k]]));
+}
+
 

@@ -4,13 +4,24 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 global.chrome = {
   storage: {
     sync: {
-      get: vi.fn((key, cb) => cb({ settings: { enabledOnAllPages: true } }))
+      get: vi.fn((key, cb) => {
+        const res = { settings: { enabledOnAllPages: true } };
+        return cb ? cb(res) : Promise.resolve(res);
+      })
     }
   },
   runtime: {
-    onMessage: { addListener: vi.fn() }
+    onMessage: { addListener: vi.fn() },
+    sendMessage: vi.fn()
   }
 };
+
+global.URL.createObjectURL = vi.fn().mockReturnValue('blob:mock-url');
+global.URL.revokeObjectURL = vi.fn();
+
+vi.mock('../src/modules/canvas/renderer.js', () => ({
+  renderTranslatedImage: vi.fn().mockResolvedValue(new Blob(['mock-translated'], { type: 'image/png' }))
+}));
 
 describe('Content Script Image Detection', () => {
   beforeEach(() => {
@@ -122,5 +133,43 @@ describe('Content Script Image Detection', () => {
     expect(completeSpy).toHaveBeenCalled();
     const eventDetail = completeSpy.mock.calls[0][0].detail;
     expect(eventDetail.regions[0].translatedText).toBe('Halo');
+  });
+
+  it('handles mantra:translation-complete event, renders overlay, and handles dismiss/download clicks', async () => {
+    await import('../src/content-script.js');
+
+    const img = document.createElement('img');
+    img.dataset.mantraIcon = 'test-icon';
+    img.getBoundingClientRect = () => ({
+      top: 100, left: 100, width: 200, height: 400
+    });
+    document.body.appendChild(img);
+
+    const imageBlob = new Blob(['data'], { type: 'image/jpeg' });
+    const regions = [{ id: '1', translatedText: 'Halo', bounds: { x: 0, y: 0, width: 10, height: 10 } }];
+
+    window.dispatchEvent(new CustomEvent('mantra:translation-complete', {
+      detail: {
+        imgElement: img,
+        imageBlob,
+        regions
+      }
+    }));
+
+    // Wait brief tick for async rendering and overlay injection
+    await new Promise(r => setTimeout(r, 20));
+
+    const overlay = document.querySelector('.mantra-overlay-image');
+    expect(overlay).not.toBeNull();
+    expect(overlay.src).toBe('blob:mock-url');
+
+    // Test click to dismiss
+    const removeSpy = vi.spyOn(overlay, 'remove');
+    overlay.dispatchEvent(new CustomEvent('click'));
+    expect(removeSpy).toHaveBeenCalled();
+    expect(global.URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
+
+    // Clean up
+    img.remove();
   });
 });
