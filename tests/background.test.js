@@ -91,4 +91,39 @@ describe('Background Service Worker', () => {
     }
     expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
   });
+
+  it('handles translateRegions request actions', async () => {
+    mockStorage.settings = {
+      translationProvider: 'gemini',
+      targetLanguage: 'id',
+      autoDetectLanguage: true,
+      sourceLanguageFallback: 'ja'
+    };
+    mockStorage.apiKeys = {
+      gemini: { key: 'mock-gemini-key' }
+    };
+    
+    // Mock translation response
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        candidates: [{ content: { parts: [{ text: '["Halo"]' }] } }]
+      })
+    });
+
+    await import('../src/background.js');
+
+    const messageHandler = global.chrome.runtime.onMessage.addListener.mock.calls[0][0];
+    const sendResponse = vi.fn();
+    messageHandler({
+      action: 'translateRegions',
+      regions: [{ id: '1', text: 'こんにちは', bounds: { x: 0, y: 0, width: 10, height: 10 } }]
+    }, {}, sendResponse);
+
+    for (let i = 0; i < 20; i++) {
+      if (sendResponse.mock.calls.length > 0) break;
+      await new Promise(r => setTimeout(r, 50));
+    }
+    expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+  });
 });

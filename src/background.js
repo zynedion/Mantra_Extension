@@ -1,6 +1,8 @@
-import { HistoryStore, ApiKeyStore, OcrCacheStore } from './modules/storage.js';
+import { HistoryStore, ApiKeyStore, OcrCacheStore, SettingsStore } from './modules/storage.js';
 import { performOcr, hashImage, OcrError } from './modules/ocr.js';
 import { refineRegions, sortReadingOrder } from './modules/bubble-grouping.js';
+import { translateRegions } from './modules/translation/orchestrator.js';
+import { TranslationError } from './modules/translation/base-provider.js';
 
 console.log('[Mantra] Background service worker initialized');
 
@@ -57,8 +59,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'performOcr') {
     handleOcrRequest(request).then(sendResponse);
     return true;
-  } else if (request.action === 'translateText') {
-    sendResponse({ success: false, error: 'Translation implementation in Phase 4' });
+  } else if (request.action === 'translateRegions') {
+    handleTranslationRequest(request).then(sendResponse);
+    return true;
   } else if (request.action === 'getSetting') {
     const { key } = request;
     chrome.storage.sync.get('settings', (result) => {
@@ -207,6 +210,38 @@ async function handleOcrRequest(request) {
     console.error('[Mantra] handleOcrRequest error:', error);
     if (error instanceof OcrError) {
       return { success: false, errorCode: error.code, error: error.message, details: error.details };
+    }
+    return { success: false, errorCode: 'UNKNOWN', error: error.message };
+  }
+}
+
+async function handleTranslationRequest(request) {
+  try {
+    const settings = await SettingsStore.getAll();
+    const providerId = settings.translationProvider || 'langbly';
+    const apiKey = await ApiKeyStore.get(providerId);
+
+    if (!apiKey) {
+      return {
+        success: false,
+        errorCode: 'NO_API_KEY',
+        error: `${providerId} API key not configured. Set it in Settings → API Keys.`
+      };
+    }
+
+    const translated = await translateRegions(request.regions, {
+      targetLang: settings.targetLanguage,
+      providerId,
+      apiKey,
+      sourceLangFallback: settings.sourceLanguageFallback,
+      autoDetect: settings.autoDetectLanguage
+    });
+
+    return { success: true, translatedRegions: translated };
+  } catch (error) {
+    console.error('[Mantra] handleTranslationRequest error:', error);
+    if (error instanceof TranslationError) {
+      return { success: false, errorCode: error.code, error: error.message };
     }
     return { success: false, errorCode: 'UNKNOWN', error: error.message };
   }
