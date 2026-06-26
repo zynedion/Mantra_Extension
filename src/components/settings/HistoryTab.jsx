@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { HistoryStore } from '../../modules/storage.js';
+import { buildHistoryZip } from '../../modules/zip-export.js';
+import HistoryGallery from './HistoryGallery.jsx';
+import '../../styles/HistoryGallery.css';
 
 const AUTO_DELETE_OPTIONS = [
   { value: '1day', label: '1 day' },
@@ -25,7 +28,18 @@ export default function HistoryTab({ settings, updateSetting }) {
   const handleExport = async () => {
     setExporting(true);
     try {
-      await chrome.runtime.sendMessage({ action: 'exportHistoryAsZip' });
+      const zipBlob = await buildHistoryZip();
+      const url = URL.createObjectURL(zipBlob);
+      const filename = `mantra-history-${new Date().toISOString().split('T')[0]}.zip`;
+
+      await chrome.downloads.download({
+        url,
+        filename,
+        saveAs: false
+      });
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      alert(`Export failed: ${err.message}`);
     } finally {
       setExporting(false);
     }
@@ -65,6 +79,11 @@ export default function HistoryTab({ settings, updateSetting }) {
         <button className="btn btn-danger" onClick={handleClear} disabled={count === 0}>
           Clear All History
         </button>
+      </section>
+
+      <section className="setting-group">
+        <h3>Browse History</h3>
+        <HistoryGallery />
       </section>
     </div>
   );
