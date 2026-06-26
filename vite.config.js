@@ -9,14 +9,21 @@ export default defineConfig({
       input: {
         popup: resolve(__dirname, 'public/popup.html'),
         options: resolve(__dirname, 'public/options.html'),
+        background: resolve(__dirname, 'src/background.js'),
+        'content-script': resolve(__dirname, 'src/content-script.js')
       },
       output: {
-        entryFileNames: '[name].js',
+        entryFileNames: (chunk) => {
+          if (chunk.name === 'background') return 'src/background.js';
+          if (chunk.name === 'content-script') return 'src/content-script.js';
+          return '[name].js';
+        },
         chunkFileNames: '[name].js',
         assetFileNames: '[name].[ext]'
       }
     },
-    outDir: 'dist'
+    outDir: 'dist',
+    sourcemap: true
   },
   test: {
     globals: true,

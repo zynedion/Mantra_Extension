@@ -32,13 +32,17 @@
     {
       "matches": ["<all_urls>"],
       "js": ["src/content-script.js"],
-      "run_at": "document_start"
+      "css": ["src/styles/content.css"],
+      "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["public/icons/*"],
+      "resources": ["public/icons/*", "assets/*"],
       "matches": ["<all_urls>"]
     }
-  ]
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
 }
