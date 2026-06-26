@@ -51,4 +51,4 @@ if ($extracted.Count -eq 0) {
 }
 
 $extracted | Set-Content -Path $OutFile
-Write-Output "wrote $OutFile: $($extracted.Count) lines"
+Write-Output "wrote $OutFile - $($extracted.Count) lines"
