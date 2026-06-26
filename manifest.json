@@ -9,11 +9,11 @@
     "128": "public/icons/icon-128.png"
   },
   "action": {
-    "default_popup": "public/popup.html",
+    "default_popup": "popup.html",
     "default_icon": "public/icons/icon-48.png",
     "default_title": "Mantra Translator"
   },
-  "options_page": "public/options.html",
+  "options_page": "options.html",
   "permissions": [
     "storage",
     "tabs",
