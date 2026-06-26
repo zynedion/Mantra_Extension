@@ -1,4 +1,6 @@
-import { HistoryStore, ApiKeyStore } from './modules/storage.js';
+import { HistoryStore, ApiKeyStore, OcrCacheStore } from './modules/storage.js';
+import { performOcr, hashImage, OcrError } from './modules/ocr.js';
+import { refineRegions, sortReadingOrder } from './modules/bubble-grouping.js';
 
 console.log('[Mantra] Background service worker initialized');
 
@@ -53,7 +55,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('[Mantra] Background received:', request.action);
   
   if (request.action === 'performOcr') {
-    sendResponse({ success: false, error: 'OCR implementation in Phase 3' });
+    handleOcrRequest(request).then(sendResponse);
+    return true;
   } else if (request.action === 'translateText') {
     sendResponse({ success: false, error: 'Translation implementation in Phase 4' });
   } else if (request.action === 'getSetting') {
@@ -70,6 +73,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   } else if (request.action === 'fetchImage') {
     fetchImageAsBuffer(request.url).then(sendResponse);
+    return true;
+  } else if (request.action === 'openSettings') {
+    chrome.runtime.openOptionsPage();
+    sendResponse({ success: true });
     return true;
   }
   return true;
@@ -126,5 +133,81 @@ async function fetchImageAsBuffer(url) {
     };
   } catch (error) {
     return { success: false, error: error.message };
+  }
+}
+
+async function handleOcrRequest(request) {
+  try {
+    const apiKey = await ApiKeyStore.get('googleCloud');
+    if (!apiKey) {
+      return {
+        success: false,
+        errorCode: 'NO_API_KEY',
+        error: 'Google Cloud Vision API key not configured. Add it in Settings → API Keys.'
+      };
+    }
+
+    if (!request.imageData) {
+      return {
+        success: false,
+        errorCode: 'INVALID_REQUEST',
+        error: 'No image data provided.'
+      };
+    }
+
+    // Reconstruct blob from transferred data
+    const imageBlob = new Blob(
+      [new Uint8Array(request.imageData)],
+      { type: request.mimeType || 'image/jpeg' }
+    );
+
+    // Check cache
+    const hash = await hashImage(imageBlob);
+    let cached = await OcrCacheStore.get(hash);
+    
+    let ocrResult;
+    let cachedHit = false;
+    
+    if (cached) {
+      console.log('[Mantra] OCR cache hit:', hash.substring(0, 8));
+      ocrResult = cached;
+      cachedHit = true;
+    } else {
+      // Call API
+      console.log('[Mantra] OCR cache miss, calling Google Cloud Vision');
+      ocrResult = await performOcr(imageBlob, apiKey);
+      
+      // Cache result
+      await OcrCacheStore.set(hash, ocrResult);
+    }
+
+    // Post-process regions: refine & sort
+    if (ocrResult && ocrResult.regions) {
+      ocrResult.regions = refineRegions(ocrResult.regions);
+      
+      // Determine source language for reading order sort.
+      // Get settings to check if autoDetectLanguage is enabled.
+      const settingsResult = await new Promise((resolve) => {
+        chrome.storage.sync.get('settings', resolve);
+      });
+      const settings = settingsResult?.settings || {};
+      const autoDetect = settings.autoDetectLanguage !== false;
+      const fallback = settings.sourceLanguageFallback || 'ja';
+      
+      let sourceLang = fallback;
+      if (autoDetect && ocrResult.detectedLanguages && ocrResult.detectedLanguages.length > 0) {
+        sourceLang = ocrResult.detectedLanguages.includes('ja') ? 'ja' : ocrResult.detectedLanguages[0];
+      }
+      
+      ocrResult.regions = sortReadingOrder(ocrResult.regions, sourceLang);
+    }
+
+    return { success: true, ocrResult, cached: cachedHit };
+  } catch (error) {
+    console.error('[Mantra] handleOcrRequest error:', error);
+    if (error instanceof OcrError) {
+      return { success: false, errorCode: error.code, error: error.message, details: error.details };
+    }
+    return { success: false, errorCode: 'UNKNOWN', error: error.message };
   }
 }

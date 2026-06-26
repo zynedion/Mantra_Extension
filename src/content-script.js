@@ -73,14 +73,76 @@ function injectFloatingIcon(imgElement) {
   imgElement.dataset.mantraIcon = iconWrapper.id;
 }
 
-function handleIconClick(imgElement, iconElement) {
+function showIconLoading(iconElement) {
   iconElement.style.opacity = '1';
   iconElement.innerHTML = `<div class="mantra-loading-spinner"></div>`;
+}
 
-  setTimeout(() => {
+async function handleIconClick(imgElement, iconElement) {
+  showIconLoading(iconElement);
+
+  try {
+    const imageBlob = await captureImageAsBlob(imgElement);
+    const arrayBuffer = await imageBlob.arrayBuffer();
+    const imageData = Array.from(new Uint8Array(arrayBuffer));
+
+    const ocrResponse = await new Promise((resolve) => {
+      chrome.runtime.sendMessage({
+        action: 'performOcr',
+        imageData,
+        mimeType: imageBlob.type
+      }, resolve);
+    });
+
+    if (!ocrResponse) {
+      showToast('No response from background service worker.', 'error');
+      return;
+    }
+
+    if (!ocrResponse.success) {
+      handleOcrError(ocrResponse);
+      return;
+    }
+
+    const ocrResult = ocrResponse.ocrResult;
+
+    if (!ocrResult || ocrResult.regions.length === 0) {
+      showToast('No text detected in image.', 'info');
+      return;
+    }
+
+    showToast(`Detected ${ocrResult.regions.length} text region(s). Translating...`, 'info');
+
+    window.dispatchEvent(new CustomEvent('mantra:ocr-complete', {
+      detail: { imgElement, imageBlob, ocrResult }
+    }));
+
+  } catch (error) {
+    console.error('[Mantra] OCR flow failed:', error);
+    showToast(`OCR failed: ${error.message}`, 'error');
+  } finally {
     resetFloatingIcon(iconElement);
-    showToast('OCR triggered! (Phase 3 integration)', 'info');
-  }, 1500);
+  }
+}
+
+function handleOcrError(response) {
+  switch (response.errorCode) {
+    case 'NO_API_KEY':
+      showToast('Set Google Cloud API key in Settings.', 'error');
+      chrome.runtime.sendMessage({ action: 'openSettings' });
+      break;
+    case 'AUTH_ERROR':
+      showToast('Invalid Google Cloud API key. Check Settings.', 'error');
+      break;
+    case 'QUOTA_EXCEEDED':
+      showToast('Google Cloud quota exceeded. Resets next month.', 'error');
+      break;
+    case 'SERVER_ERROR':
+      showToast('Google Cloud server error. Try again shortly.', 'error');
+      break;
+    default:
+      showToast(`OCR error: ${response.error || 'Unknown error'}`, 'error');
+  }
 }
 
 function resetFloatingIcon(iconElement) {
