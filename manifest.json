@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "Mantra - Manga Translator",
+  "version": "1.0.0",
+  "description": "Translate manga text in-place using Google Cloud Vision and AI translation",
+  "icons": {
+    "16": "public/icons/icon-16.png",
+    "48": "public/icons/icon-48.png",
+    "128": "public/icons/icon-128.png"
+  },
+  "action": {
+    "default_popup": "public/popup.html",
+    "default_icon": "public/icons/icon-48.png",
+    "default_title": "Mantra Translator"
+  },
+  "options_page": "public/options.html",
+  "permissions": [
+    "storage",
+    "tabs",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content-script.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["public/icons/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
