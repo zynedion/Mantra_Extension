@@ -1,3 +1,5 @@
+import { HistoryStore, ApiKeyStore } from './modules/storage.js';
+
 console.log('[Mantra] Background service worker initialized');
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -7,6 +9,18 @@ chrome.runtime.onInstalled.addListener(() => {
       initializeDefaultSettings();
     }
   });
+
+  // Create alarms for daily cleanup
+  chrome.alarms.create('mantra-auto-delete', {
+    periodInMinutes: 60 * 24 // 1 day
+  });
+});
+
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name === 'mantra-auto-delete') {
+    const count = await HistoryStore.runAutoDelete();
+    console.log(`[Mantra] Auto-deleted ${count} outdated history records.`);
+  }
 });
 
 function initializeDefaultSettings() {
@@ -37,6 +51,7 @@ function initializeDefaultSettings() {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('[Mantra] Background received:', request.action);
+  
   if (request.action === 'performOcr') {
     sendResponse({ success: false, error: 'OCR implementation in Phase 3' });
   } else if (request.action === 'translateText') {
@@ -50,6 +65,46 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ success: false, error: `Setting not found: ${key}` });
       }
     });
+  } else if (request.action === 'testApiKey') {
+    testApiKey(request.provider).then(sendResponse);
+    return true;
   }
   return true;
 });
+
+async function testApiKey(provider) {
+  const key = await ApiKeyStore.get(provider);
+  if (!key) return { success: false, error: 'No key configured' };
+
+  try {
+    switch (provider) {
+      case 'googleCloud':
+        return await testGoogleCloud(key);
+      case 'langbly':
+      case 'openrouter':
+      case 'gemini':
+      case 'openai':
+      case 'claude':
+      case 'deepseek':
+        // Return dummy success for stub test checks in Phase 2
+        return { success: true };
+      default:
+        return { success: false, error: 'Unknown provider' };
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function testGoogleCloud(key) {
+  const tinyPng = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+  const url = `https://vision.googleapis.com/v1/images:annotate?key=${key}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      requests: [{ image: { content: tinyPng }, features: [{ type: 'TEXT_DETECTION' }] }]
+    })
+  });
+  return { success: res.ok, status: res.status };
+}

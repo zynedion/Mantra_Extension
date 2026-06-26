@@ -7,8 +7,8 @@ import Popup from '../src/popup.jsx';
 global.chrome = {
   storage: {
     sync: {
-      get: vi.fn((key, cb) => cb({ settings: { enabledOnAllPages: true } })),
-      set: vi.fn()
+      get: vi.fn((key, cb) => cb ? cb({ settings: { enabledOnAllPages: true } }) : Promise.resolve({ settings: { enabledOnAllPages: true } })),
+      set: vi.fn((data, cb) => cb ? cb() : Promise.resolve())
     }
   },
   runtime: {
