@@ -62,6 +62,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'translateRegions') {
     handleTranslationRequest(request).then(sendResponse);
     return true;
+  } else if (request.action === 'saveToHistory') {
+    handleHistorySave(request).then(sendResponse);
+    return true;
   } else if (request.action === 'getSetting') {
     const { key } = request;
     chrome.storage.sync.get('settings', (result) => {
@@ -246,3 +249,41 @@ async function handleTranslationRequest(request) {
     return { success: false, errorCode: 'UNKNOWN', error: error.message };
   }
 }
+
+async function handleHistorySave(request) {
+  try {
+    const settings = await SettingsStore.getAll();
+    if (!settings.autoSave) {
+      return { success: false, skipped: true, reason: 'Auto-save disabled' };
+    }
+
+    const entry = request.entry;
+    const originalBlob = new Blob(
+      [new Uint8Array(entry.originalImageData || [])],
+      { type: 'image/jpeg' }
+    );
+    const translatedBlob = new Blob(
+      [new Uint8Array(entry.translatedImageData || [])],
+      { type: 'image/png' }
+    );
+
+    const id = await HistoryStore.save({
+      originalImageBlob: originalBlob,
+      translatedImageBlob: translatedBlob,
+      originalText: entry.originalText || '',
+      translatedText: entry.translatedText || '',
+      siteUrl: entry.siteUrl,
+      sourceLang: entry.sourceLang,
+      targetLang: entry.targetLang,
+      translationModel: entry.translationModel,
+      canvasSettings: entry.canvasSettings,
+      regions: entry.regions
+    });
+
+    return { success: true, id };
+  } catch (error) {
+    console.error('[Mantra] Save to history failed:', error);
+    return { success: false, error: error.message };
+  }
+}
+

@@ -126,4 +126,36 @@ describe('Background Service Worker', () => {
     }
     expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
   });
+
+  it('handles saveToHistory request actions', async () => {
+    mockStorage.settings = {
+      autoSave: true,
+      targetLanguage: 'id',
+      translationProvider: 'langbly'
+    };
+
+    await import('../src/background.js');
+
+    const messageHandler = global.chrome.runtime.onMessage.addListener.mock.calls[0][0];
+    const sendResponse = vi.fn();
+    messageHandler({
+      action: 'saveToHistory',
+      entry: {
+        originalImageData: [1, 2, 3],
+        translatedImageData: [4, 5, 6],
+        regions: [{ id: '1', text: 'こんにちは', translatedText: 'Halo' }],
+        siteUrl: 'https://mangadex.org',
+        sourceLang: 'ja',
+        targetLang: 'id',
+        translationModel: 'langbly',
+        canvasSettings: { fontSize: 16 }
+      }
+    }, {}, sendResponse);
+
+    for (let i = 0; i < 20; i++) {
+      if (sendResponse.mock.calls.length > 0) break;
+      await new Promise(r => setTimeout(r, 50));
+    }
+    expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+  });
 });
