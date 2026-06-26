@@ -99,6 +99,7 @@ export const ApiKeyStore = {
 };
 
 const STORE_OCR_CACHE = 'ocrCache';
+const STORE_TRANSLATION_CACHE = 'translationCache';
 
 let dbInstance = null;
 async function getDB() {
@@ -113,6 +114,10 @@ async function getDB() {
       if (!db.objectStoreNames.contains(STORE_OCR_CACHE)) {
         const cacheStore = db.createObjectStore(STORE_OCR_CACHE, { keyPath: 'hash' });
         cacheStore.createIndex('cachedAt', 'cachedAt');
+      }
+      if (!db.objectStoreNames.contains(STORE_TRANSLATION_CACHE)) {
+        const store = db.createObjectStore(STORE_TRANSLATION_CACHE, { keyPath: 'key' });
+        store.createIndex('cachedAt', 'cachedAt');
       }
     }
   });
@@ -224,5 +229,42 @@ export const OcrCacheStore = {
   async clear() {
     const db = await getDB();
     await db.clear(STORE_OCR_CACHE);
+  }
+};
+
+export const TranslationCacheStore = {
+  async getDBInstance() {
+    return await getDB();
+  },
+  async hashKey(text, sourceLang, targetLang) {
+    const data = `${sourceLang}::${targetLang}::${text}`;
+    const buffer = new TextEncoder().encode(data);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 32);
+  },
+  async get(text, sourceLang, targetLang) {
+    const key = await this.hashKey(text, sourceLang, targetLang);
+    const db = await getDB();
+    const entry = await db.get(STORE_TRANSLATION_CACHE, key);
+    if (!entry) return null;
+    if (Date.now() - new Date(entry.cachedAt).getTime() > 30 * 24 * 60 * 60 * 1000) {
+      await db.delete(STORE_TRANSLATION_CACHE, key);
+      return null;
+    }
+    return entry.translatedText;
+  },
+  async set(text, sourceLang, targetLang, translatedText) {
+    const key = await this.hashKey(text, sourceLang, targetLang);
+    const db = await getDB();
+    await db.put(STORE_TRANSLATION_CACHE, {
+      key,
+      translatedText,
+      cachedAt: new Date().toISOString()
+    });
+  },
+  async clear() {
+    const db = await getDB();
+    await db.clear(STORE_TRANSLATION_CACHE);
   }
 };

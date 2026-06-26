@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import 'fake-indexeddb/auto';
-import { HistoryStore, OcrCacheStore } from '../src/modules/storage.js';
+import { HistoryStore, OcrCacheStore, TranslationCacheStore } from '../src/modules/storage.js';
 
 global.chrome = {
   storage: {
@@ -56,6 +56,36 @@ describe('OcrCacheStore Operations', () => {
     await db.put('ocrCache', { hash, ocrResult, cachedAt: expiredDate });
 
     const expiredRetrieved = await OcrCacheStore.get(hash);
+    expect(expiredRetrieved).toBeNull();
+  });
+});
+
+describe('TranslationCacheStore Operations', () => {
+  beforeEach(async () => {
+    try {
+      await TranslationCacheStore.clear();
+    } catch (e) {
+      // In case DB doesn't exist/upgrade yet
+    }
+  });
+
+  it('caches translation and retrieves it, enforcing 30-day expiration', async () => {
+    const text = 'こんにちは';
+    const sourceLang = 'ja';
+    const targetLang = 'id';
+    const translatedText = 'Halo';
+
+    await TranslationCacheStore.set(text, sourceLang, targetLang, translatedText);
+    const retrieved = await TranslationCacheStore.get(text, sourceLang, targetLang);
+    expect(retrieved).toBe(translatedText);
+
+    // Verify expiration
+    const db = await TranslationCacheStore.getDBInstance();
+    const key = await TranslationCacheStore.hashKey(text, sourceLang, targetLang);
+    const expiredDate = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString();
+    await db.put('translationCache', { key, translatedText, cachedAt: expiredDate });
+
+    const expiredRetrieved = await TranslationCacheStore.get(text, sourceLang, targetLang);
     expect(expiredRetrieved).toBeNull();
   });
 });
