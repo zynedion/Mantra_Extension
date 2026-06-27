@@ -1,21 +1,61 @@
 import React from 'react';
 
+// Target languages (what you want to read in)
 const LANGUAGES = [
+  // Southeast Asia
   { code: 'id', label: 'Indonesian' },
-  { code: 'en', label: 'English' },
+  { code: 'ms', label: 'Malay' },
+  { code: 'tl', label: 'Filipino / Tagalog' },
+  { code: 'vi', label: 'Vietnamese' },
+  { code: 'th', label: 'Thai' },
+  { code: 'my', label: 'Burmese' },
+  { code: 'km', label: 'Khmer' },
+  // East Asia
   { code: 'ja', label: 'Japanese' },
   { code: 'zh', label: 'Chinese (Simplified)' },
+  { code: 'zh-TW', label: 'Chinese (Traditional)' },
   { code: 'ko', label: 'Korean' },
+  // South Asia
+  { code: 'hi', label: 'Hindi' },
+  { code: 'bn', label: 'Bengali' },
+  { code: 'ur', label: 'Urdu' },
+  // Europe
+  { code: 'en', label: 'English' },
   { code: 'es', label: 'Spanish' },
   { code: 'fr', label: 'French' },
-  { code: 'de', label: 'German' }
+  { code: 'de', label: 'German' },
+  { code: 'pt', label: 'Portuguese' },
+  { code: 'it', label: 'Italian' },
+  { code: 'nl', label: 'Dutch' },
+  { code: 'pl', label: 'Polish' },
+  { code: 'ru', label: 'Russian' },
+  { code: 'tr', label: 'Turkish' },
+  // Middle East
+  { code: 'ar', label: 'Arabic' },
+  { code: 'fa', label: 'Persian / Farsi' },
+  { code: 'he', label: 'Hebrew' },
 ];
 
+// Fallback source language options (what language the manga is written in)
 const SOURCE_FALLBACKS = [
-  { code: 'ja', label: 'Japanese (default for manga)' },
-  { code: 'zh', label: 'Chinese' },
-  { code: 'ko', label: 'Korean' }
+  // Most common manga/manhwa/manhua sources
+  { code: 'ja', label: '🇯🇵 Japanese — manga' },
+  { code: 'zh', label: '🇨🇳 Chinese Simplified — manhua' },
+  { code: 'zh-TW', label: '🇹🇼 Chinese Traditional — manhua' },
+  { code: 'ko', label: '🇰🇷 Korean — manhwa' },
+  // Less common but supported
+  { code: 'th', label: '🇹🇭 Thai' },
+  { code: 'vi', label: '🇻🇳 Vietnamese' },
+  { code: 'id', label: '🇮🇩 Indonesian' },
+  { code: 'en', label: '🇬🇧 English' },
+  { code: 'fr', label: '🇫🇷 French — BD / bande dessinée' },
+  { code: 'es', label: '🇪🇸 Spanish' },
+  { code: 'de', label: '🇩🇪 German' },
+  { code: 'pt', label: '🇵🇹 Portuguese' },
+  { code: 'ru', label: '🇷🇺 Russian' },
+  { code: 'ar', label: '🇸🇦 Arabic' },
 ];
+
 
 export default function TranslationTab({ settings, updateSetting }) {
   return (
