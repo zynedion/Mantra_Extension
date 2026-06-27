@@ -50,7 +50,7 @@ export class OpenRouterProvider extends TranslationProvider {
         'X-Title': 'Mantra Extension'
       },
       body: JSON.stringify({
-        model: 'meta-llama/llama-3.1-8b-instruct:free',
+        model: 'deepseek/deepseek-r1:free',  // free tier, no credits needed
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
         max_tokens: 2000
@@ -78,7 +78,7 @@ export class GeminiProvider extends TranslationProvider {
   async translate(regions, sourceLang, targetLang) {
     const prompt = this.buildPrompt(regions, sourceLang, targetLang);
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${this.apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.apiKey}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
